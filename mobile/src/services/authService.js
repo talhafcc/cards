@@ -7,10 +7,18 @@ export async function authenticate(username, password) {
     password: password.trim().toLowerCase(),
   };
 
-  const response = await axios.post(`${API_BASE_URL}/api/authenticate`, payload, {
-    headers: { "Content-Type": "application/json" },
-    timeout: 10000,
-  });
+  const url = `${API_BASE_URL}/api/authenticate`;
+  console.log("Auth request to:", url);
 
-  return response.data;
+  try {
+    const response = await axios.post(url, payload, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 10000,
+    });
+    console.log("Auth response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("Auth error:", error.message, error.response?.status, error.response?.data);
+    throw error;
+  }
 }

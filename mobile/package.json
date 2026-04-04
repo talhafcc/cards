@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "start": "expo start --host lan",
+    "android": "expo start --host lan --android",
+    "ios": "expo start --host lan --ios",
     "web": "expo start --web"
   },
   "dependencies": {
@@ -15,6 +15,7 @@
     "axios": "^1.14.0",
     "expo": "~54.0.33",
     "expo-status-bar": "~3.0.9",
+    "latest": "^0.2.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
