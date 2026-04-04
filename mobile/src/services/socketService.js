@@ -43,5 +43,6 @@ export function connectSocket() {
 export function disconnectSocket() {
   if (socket) {
     socket.disconnect();
+    socket = null;
   }
 }

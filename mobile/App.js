@@ -6,6 +6,7 @@ import HomeScreen from "./src/screens/HomeScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import GameScreen from "./src/screens/GameScreen";
 import { clearSession, loadSession } from "./src/state/sessionStorage";
+import { disconnectSocket } from "./src/services/socketService";
 
 const Stack = createNativeStackNavigator();
 
@@ -15,8 +16,7 @@ export default function App() {
 
   useEffect(() => {
     async function bootstrap() {
-      const existingSession = await loadSession();
-      setSession(existingSession);
+      await clearSession();
       setLoading(false);
     }
 
@@ -24,6 +24,7 @@ export default function App() {
   }, []);
 
   async function logout() {
+    disconnectSocket();
     await clearSession();
     setSession(null);
   }
@@ -55,7 +56,7 @@ export default function App() {
               )}
             </Stack.Screen>
             <Stack.Screen name="Game">
-              {() => <GameScreen session={session} />}
+              {() => <GameScreen session={session} onReset={logout} />}
             </Stack.Screen>
           </>
         )}

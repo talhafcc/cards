@@ -3,32 +3,36 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 import { authenticate } from "../services/authService";
 import { saveSession } from "../state/sessionStorage";
 
+function randomName() {
+  const adj = ["Swift", "Bold", "Sly", "Lucky", "Keen", "Brave", "Cool", "Sharp"];
+  const noun = ["Fox", "Ace", "King", "Hawk", "Wolf", "Bear", "Lion", "Star"];
+  const a = adj[Math.floor(Math.random() * adj.length)];
+  const n = noun[Math.floor(Math.random() * noun.length)];
+  const num = Math.floor(Math.random() * 100);
+  return `${a}${n}${num}`;
+}
+
 export default function LoginScreen({ onLoggedIn }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState(randomName());
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
-    if (!username.trim() || !password.trim()) {
-      Alert.alert("Missing info", "Enter both username and password.");
-      return;
-    }
+    const name = username.trim() || randomName();
 
     try {
       setLoading(true);
-      const data = await authenticate(username, password);
+      const data = await authenticate(name, "");
       const session = {
         username: data.username,
         playerID: data.playerID,
       };
-      await saveSession(session);
       onLoggedIn(session);
     } catch (error) {
       const reason =
         error?.response?.data?.reason ||
         error?.message ||
         "Login failed. Check API URL and server status.";
-      Alert.alert("Authentication failed", reason);
+      Alert.alert("Login failed", reason);
     } finally {
       setLoading(false);
     }
@@ -37,22 +41,14 @@ export default function LoginScreen({ onLoggedIn }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>DubRung</Text>
-      <Text style={styles.subtitle}>Sign in to continue</Text>
+      <Text style={styles.subtitle}>Tap Play to join</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="username"
+        placeholder="nickname"
         autoCapitalize="none"
         value={username}
         onChangeText={setUsername}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="password"
-        secureTextEntry
-        autoCapitalize="none"
-        value={password}
-        onChangeText={setPassword}
       />
 
       <Pressable
@@ -60,7 +56,7 @@ export default function LoginScreen({ onLoggedIn }) {
         disabled={loading}
         onPress={handleLogin}
       >
-        <Text style={styles.buttonText}>{loading ? "Signing in..." : "Sign In"}</Text>
+        <Text style={styles.buttonText}>{loading ? "Joining..." : "Play"}</Text>
       </Pressable>
     </View>
   );
