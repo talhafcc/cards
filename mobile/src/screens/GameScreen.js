@@ -66,6 +66,7 @@ export default function GameScreen({ session, onReset }) {
   // ---- connection ---------------------------------------------------------
   const [socketStatus, setSocketStatus] = useState("connecting");
   const socket = useMemo(() => connectSocket(), []);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // ---- players ------------------------------------------------------------
   const [playerSequence, setPlayerSequence] = useState([]);
@@ -86,6 +87,7 @@ export default function GameScreen({ session, onReset }) {
   const [trumpCard, setTrumpCard] = useState(null);
   const [trumpRevealed, setTrumpRevealed] = useState(false);
   const [trumpAsked, setTrumpAsked] = useState(false);
+  const [youRequestedTrump, setYouRequestedTrump] = useState(false);
   const [moodaSuit, setMoodaSuit] = useState(null);
   const [trumpCaller, setTrumpCaller] = useState(-1); // perspective index
 
@@ -111,7 +113,9 @@ export default function GameScreen({ session, onReset }) {
 
   // ---- overlay message ----------------------------------------------------
   const [overlay, setOverlay] = useState(null);
+  const [countdown, setCountdown] = useState(null);
   const overlayTimer = useRef(null);
+  const countdownTimer = useRef(null);
 
   // ---- refs for mutable state in callbacks --------------------------------
   const handRef = useRef(hand);
@@ -124,8 +128,28 @@ export default function GameScreen({ session, onReset }) {
   // ---- helpers ------------------------------------------------------------
   const showOverlay = useCallback((msg, timeout = 3000) => {
     setOverlay(msg);
+    setCountdown(null);
+    if (countdownTimer.current) clearInterval(countdownTimer.current);
     if (overlayTimer.current) clearTimeout(overlayTimer.current);
     overlayTimer.current = setTimeout(() => setOverlay(null), timeout);
+  }, []);
+
+  const showOverlayWithCountdown = useCallback((msg, seconds) => {
+    setCountdown(seconds);
+    setOverlay(msg);
+    if (overlayTimer.current) clearTimeout(overlayTimer.current);
+    if (countdownTimer.current) clearInterval(countdownTimer.current);
+    let remaining = seconds;
+    countdownTimer.current = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(countdownTimer.current);
+        setOverlay(null);
+        setCountdown(null);
+      } else {
+        setCountdown(remaining);
+      }
+    }, 1000);
   }, []);
 
   function updateSuitsInHand(cards) {
@@ -135,18 +159,20 @@ export default function GameScreen({ session, onReset }) {
   }
 
   // ---- throw card ---------------------------------------------------------
-  function handleThrowCard(cardCode) {
+  function handleThrowCard(cardCode, budRungi = false) {
     if (!socket.connected) {
-      Alert.alert("Disconnected", "Trying to reconnect…");
+      Alert.alert("Disconnected", "Trying to reconnect\u2026");
       socket.connect();
       return;
     }
-    socket.emit("card thrown", cardCode);
+    const message = budRungi ? "budRungi" : cardCode;
+    socket.emit("card thrown", message);
     const next = hand.filter((c) => c !== cardCode);
     setHand(next);
     updateSuitsInHand(next);
     setTableCards((prev) => ({ ...prev, [1]: cardCode }));
     setMyTurn(false);
+    setActivePlayer(-1);
     setSelectedCard(null);
     setEnableMoodaBtn(false);
   }
@@ -168,14 +194,68 @@ export default function GameScreen({ session, onReset }) {
       // second tap = throw
       // validate suit
       const suits = [...new Set(handRef.current.map((c) => c[0]))];
-      if (currentRoundSuit && suits.includes(currentRoundSuit) && cardCode[0] !== currentRoundSuit) {
+      const hasSuit = currentRoundSuit && suits.includes(currentRoundSuit);
+
+      if (hasSuit && cardCode[0] !== currentRoundSuit) {
         showOverlay("Throw correct suit");
         return;
       }
-      handleThrowCard(cardCode);
+
+      // If opponent (p2/p4) has no suit and trump not revealed, prompt to request trump
+      if (currentRoundSuit && !hasSuit && cardCode[0] !== currentRoundSuit
+          && (playerNumber === 2 || playerNumber === 4) && !trumpRevealed) {
+        showOverlay("Tap the trump card to request it");
+        return;
+      }
+
+      // After requesting trump, must throw trump suit if you have it
+      if (trumpRevealed && youRequestedTrump) {
+        const trumpSuit = trumpCard?.[0];
+        const hasTrumpSuit = trumpSuit && suits.includes(trumpSuit);
+        if (hasTrumpSuit && cardCode[0] !== trumpSuit) {
+          showOverlay("You have to throw trump");
+          return;
+        }
+        setYouRequestedTrump(false);
+      }
+
+      // BudRungi: player 1 (trump caller) throws off-suit and trump not revealed
+      const isBudRungi = playerNumber === 1 && !trumpRevealed && currentRoundSuit && !hasSuit;
+      handleThrowCard(cardCode, isBudRungi);
     } else {
       setSelectedCard(cardCode);
     }
+  }
+
+  // ---- request / reveal trump ---------------------------------------------
+  function onTrumpPress() {
+    if (!myTurn) return;
+    // Trump caller reveals trump when it's been requested
+    if (playerNumber === 1 && trumpAsked && trumpCard && !trumpRevealed) {
+      socket.emit("reveal trump");
+      // Add trump card back to hand
+      const cardCode = trumpCard;
+      const next = [...hand, cardCode];
+      setHand(arrangeCards(next.slice().sort()));
+      updateSuitsInHand(next);
+      setTrumpRevealed(true);
+      setTrumpCard(null);
+      return;
+    }
+    // Opponents (p2/p4) request trump when they don't have the round suit
+    if ((playerNumber === 2 || playerNumber === 4) && currentRoundSuit && !trumpRevealed) {
+      const suits = [...new Set(hand.map((c) => c[0]))];
+      if (!suits.includes(currentRoundSuit)) {
+        socket.emit("request trump");
+        setYouRequestedTrump(true);
+        return;
+      }
+    }
+    if (playerNumber === 3) {
+      showOverlay("Your partner is the trump caller");
+      return;
+    }
+    showOverlay("Can't open trump at this stage");
   }
 
   // ---- bet ----------------------------------------------------------------
@@ -239,7 +319,8 @@ export default function GameScreen({ session, onReset }) {
     });
 
     socket.on("user left", (data) => {
-      showOverlay(data.message, data.timeout || 4000);
+      const seconds = Math.ceil((data.timeout || 30000) / 1000);
+      showOverlayWithCountdown(data.message, seconds);
     });
 
     // -- deal ---------------------------------------------------------------
@@ -375,6 +456,7 @@ export default function GameScreen({ session, onReset }) {
       setTrumpCard(null);
       setTrumpRevealed(false);
       setTrumpAsked(false);
+      setYouRequestedTrump(false);
       setMoodaSuit(null);
       setChoosingTrump(false);
       setMyTurn(false);
@@ -422,7 +504,23 @@ export default function GameScreen({ session, onReset }) {
         "message","reconnect","reconnect_error",
       ].forEach((e) => socket.removeAllListeners(e));
     };
-  }, [session.playerID, session.username, socket, showOverlay]);
+  }, [session.playerID, session.username, socket, showOverlay, showOverlayWithCountdown]);
+
+  // ---- pulse animation for my turn ----------------------------------------
+  useEffect(() => {
+    if (myTurn) {
+      const loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ])
+      );
+      loop.start();
+      return () => loop.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [myTurn, pulseAnim]);
 
   // =========================================================================
   // Derived
@@ -438,19 +536,29 @@ export default function GameScreen({ session, onReset }) {
     const name = p[perspIdx] || "";
     const isActive = activePlayer === perspIdx;
     const isTrumpCaller = trumpCaller === perspIdx;
+    const isMe = perspIdx === 0;
+    const circle = (
+      <View
+        style={[
+          styles.avatarCircle,
+          isActive && styles.avatarActive,
+          isTrumpCaller && styles.avatarTrumpCaller,
+        ]}
+      >
+        <Text style={styles.avatarInitial}>
+          {name ? name[0].toUpperCase() : "?"}
+        </Text>
+      </View>
+    );
     return (
       <View style={[styles.avatarWrap, style]}>
-        <View
-          style={[
-            styles.avatarCircle,
-            isActive && styles.avatarActive,
-            isTrumpCaller && styles.avatarTrumpCaller,
-          ]}
-        >
-          <Text style={styles.avatarInitial}>
-            {name ? name[0].toUpperCase() : "?"}
-          </Text>
-        </View>
+        {isMe && myTurn ? (
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            {circle}
+          </Animated.View>
+        ) : (
+          circle
+        )}
         <Text style={styles.avatarName} numberOfLines={1}>{name}</Text>
         {betBubbles[perspIdx] != null && (
           <View style={styles.betBubble}>
@@ -528,14 +636,14 @@ export default function GameScreen({ session, onReset }) {
             <View style={styles.tableCenter}>
               {/* Trump / Mooda indicators */}
               {(trumpCard || moodaSuit) && (
-                <View style={styles.trumpBadge}>
+                <Pressable style={styles.trumpBadge} onPress={onTrumpPress}>
                   {trumpCard && (
                     <Image source={cardImageUri(trumpCard)} style={styles.trumpImg} resizeMode="contain" />
                   )}
                   {moodaSuit && (
                     <Image source={{ uri: `${IMAGE_URL}${SUIT_IMAGES[moodaSuit]}.jpg` }} style={styles.trumpImg} resizeMode="contain" />
                   )}
-                </View>
+                </Pressable>
               )}
 
               {/* Thrown cards in 4 positions */}
@@ -565,6 +673,11 @@ export default function GameScreen({ session, onReset }) {
       </View>
 
       {/* ---- HAND (fan) ---- */}
+      {myTurn && (
+        <View style={styles.yourTurnBanner}>
+          <Text style={styles.yourTurnText}>YOUR TURN</Text>
+        </View>
+      )}
       <View style={styles.handArea}>
         <ScrollView
           horizontal
@@ -586,7 +699,7 @@ export default function GameScreen({ session, onReset }) {
                   style={[
                     styles.handCardWrap,
                     {
-                      marginRight: -CARD_W * 0.55,
+                      marginRight: -CARD_W * 0.45,
                       transform: [
                         { rotate: `${angle}deg` },
                         { translateY: isSelected ? -16 : 0 },
@@ -608,6 +721,9 @@ export default function GameScreen({ session, onReset }) {
         <View style={styles.overlay} pointerEvents="none">
           <View style={styles.overlayBox}>
             <Text style={styles.overlayText}>{overlay}</Text>
+            {countdown != null && (
+              <Text style={styles.countdownText}>{countdown}s</Text>
+            )}
           </View>
         </View>
       )}
@@ -789,6 +905,14 @@ const styles = StyleSheet.create({
   },
   waitText: { color: "#c3d0c8", fontSize: 14, alignSelf: "center", paddingTop: 20 },
 
+  // -- your turn banner --
+  yourTurnBanner: {
+    alignItems: "center", paddingVertical: 4,
+  },
+  yourTurnText: {
+    color: "gold", fontSize: 14, fontWeight: "800", letterSpacing: 2,
+  },
+
   // -- mooda button --
   moodaBtn: {
     width: 40, height: 40, borderRadius: 20, backgroundColor: "#264d3b",
@@ -806,6 +930,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24, paddingVertical: 14, maxWidth: "80%",
   },
   overlayText: { color: "#f8efcf", fontSize: 16, textAlign: "center", fontWeight: "600" },
+  countdownText: { color: "#ff9944", fontSize: 28, fontWeight: "700", marginTop: 8 },
 
   // -- modals --
   modalBackdrop: {
