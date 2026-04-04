@@ -229,9 +229,8 @@ export default function GameScreen({ session, onReset }) {
 
   // ---- request / reveal trump ---------------------------------------------
   function onTrumpPress() {
-    if (!myTurn) return;
-    // Trump caller reveals trump when it's been requested
-    if (playerNumber === 1 && trumpAsked && trumpCard && !trumpRevealed) {
+    // Trump caller can reveal trump by tapping it
+    if (playerNumber === 1 && trumpCard && !trumpRevealed) {
       socket.emit("reveal trump");
       // Add trump card back to hand
       const cardCode = trumpCard;
@@ -255,7 +254,6 @@ export default function GameScreen({ session, onReset }) {
       showOverlay("Your partner is the trump caller");
       return;
     }
-    showOverlay("Can't open trump at this stage");
   }
 
   // ---- bet ----------------------------------------------------------------
@@ -634,18 +632,6 @@ export default function GameScreen({ session, onReset }) {
           {/* Table center */}
           <View style={styles.tableCenterWrap}>
             <View style={styles.tableCenter}>
-              {/* Trump / Mooda indicators */}
-              {(trumpCard || moodaSuit) && (
-                <Pressable style={styles.trumpBadge} onPress={onTrumpPress}>
-                  {trumpCard && (
-                    <Image source={cardImageUri(trumpCard)} style={styles.trumpImg} resizeMode="contain" />
-                  )}
-                  {moodaSuit && (
-                    <Image source={{ uri: `${IMAGE_URL}${SUIT_IMAGES[moodaSuit]}.jpg` }} style={styles.trumpImg} resizeMode="contain" />
-                  )}
-                </Pressable>
-              )}
-
               {/* Thrown cards in 4 positions */}
               <View style={styles.tableCardPos3}>{renderTableCard(3)}</View>
               <View style={styles.tableCardPos1}>{renderTableCard(1)}</View>
@@ -662,13 +648,28 @@ export default function GameScreen({ session, onReset }) {
 
         {/* Bottom player (me, perspective index 0) */}
         <View style={styles.bottomAvatarRow}>
+          {/* Left spacer for symmetry */}
+          <View style={styles.bottomSide}>
+            {enableMoodaBtn && (
+              <Pressable style={styles.moodaBtn} onPress={() => setShowMoodaModal(true)}>
+                <Image source={{ uri: `${IMAGE_URL}M.png` }} style={styles.moodaImg} resizeMode="contain" />
+              </Pressable>
+            )}
+          </View>
           {renderAvatar(0, styles.bottomAvatar)}
-          {/* Mooda button */}
-          {enableMoodaBtn && (
-            <Pressable style={styles.moodaBtn} onPress={() => setShowMoodaModal(true)}>
-              <Image source={{ uri: `${IMAGE_URL}M.png` }} style={styles.moodaImg} resizeMode="contain" />
-            </Pressable>
-          )}
+          {/* Trump / Mooda indicators on the right */}
+          <View style={styles.bottomSide}>
+            {(trumpCard || moodaSuit) && (
+              <Pressable style={styles.trumpBadge} onPress={onTrumpPress}>
+                {trumpCard && (
+                  <Image source={cardImageUri(trumpCard)} style={styles.trumpImg} resizeMode="contain" />
+                )}
+                {moodaSuit && (
+                  <Image source={{ uri: `${IMAGE_URL}${SUIT_IMAGES[moodaSuit]}.jpg` }} style={styles.trumpImg} resizeMode="contain" />
+                )}
+              </Pressable>
+            )}
+          </View>
         </View>
       </View>
 
@@ -861,14 +862,15 @@ const styles = StyleSheet.create({
   tableCardImg: { width: TABLE_CARD_H * 0.7, height: TABLE_CARD_H },
 
   // trump badge
-  trumpBadge: { position: "absolute", top: 4, right: 4, flexDirection: "row", gap: 4 },
-  trumpImg: { width: 30, height: 42 },
+  trumpBadge: { flexDirection: "row", gap: 4 },
+  trumpImg: { width: 45, height: 63 },
 
   // bottom row
   bottomAvatarRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    paddingBottom: 2, gap: 12,
+    paddingBottom: 2,
   },
+  bottomSide: { flex: 1, alignItems: "flex-end", justifyContent: "center", paddingRight: 12 },
   bottomAvatar: {},
 
   // -- avatars --
