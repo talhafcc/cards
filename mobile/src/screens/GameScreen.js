@@ -145,6 +145,7 @@ export default function GameScreen({ session, onReset }) {
     const next = hand.filter((c) => c !== cardCode);
     setHand(next);
     updateSuitsInHand(next);
+    setTableCards((prev) => ({ ...prev, [1]: cardCode }));
     setMyTurn(false);
     setSelectedCard(null);
     setEnableMoodaBtn(false);
