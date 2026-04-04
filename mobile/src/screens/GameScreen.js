@@ -782,11 +782,18 @@ export default function GameScreen({ session, onReset }) {
       {/* ---- Partner Cards Modal ---- */}
       <Modal visible={!!partnerCards} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalBox}>
+          <View style={[styles.modalBox, styles.partnerModalBox]}>
             <Text style={styles.modalTitle}>Partner's Cards</Text>
-            <ScrollView horizontal contentContainerStyle={styles.partnerScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.partnerScrollView}
+              contentContainerStyle={styles.partnerScroll}
+            >
               {(partnerCards || []).map((c, i) => (
-                <Image key={`${c}-${i}`} source={cardImageUri(c)} style={styles.partnerCard} resizeMode="contain" />
+                <View key={`${c}-${i}`} style={[styles.partnerCardWrap, { zIndex: i }]}>
+                  <Image source={cardImageUri(c)} style={styles.partnerCard} resizeMode="contain" />
+                </View>
               ))}
             </ScrollView>
             <View style={styles.partnerBtns}>
@@ -970,7 +977,10 @@ const styles = StyleSheet.create({
   moodaSuitImg: { width: 40, height: 40 },
 
   // -- partner cards --
-  partnerScroll: { paddingVertical: 10, gap: 6, paddingHorizontal: 8 },
-  partnerCard: { width: CARD_W * 0.9, height: CARD_H * 0.9 },
+  partnerModalBox: { width: "94%", paddingHorizontal: 10, paddingVertical: 14 },
+  partnerScrollView: { width: "100%", marginTop: 4 },
+  partnerScroll: { alignItems: "center", paddingVertical: 10, paddingHorizontal: 8, paddingRight: CARD_W * 0.45 },
+  partnerCardWrap: { marginRight: -CARD_W * 0.4 },
+  partnerCard: { width: CARD_W * 0.86, height: CARD_H * 0.86 },
   partnerBtns: { flexDirection: "row", gap: 14, marginTop: 10 },
 });
