@@ -117,6 +117,7 @@ export default function GameScreen({ session, onReset }) {
   const [countdown, setCountdown] = useState(null);
   const overlayTimer = useRef(null);
   const countdownTimer = useRef(null);
+  const needsFreshHandRef = useRef(false);
 
   // ---- refs for mutable state in callbacks --------------------------------
   const handRef = useRef(hand);
@@ -291,6 +292,7 @@ export default function GameScreen({ session, onReset }) {
     }
     function onDisconnect(reason) {
       setSocketStatus("disconnected");
+      needsFreshHandRef.current = true;
       // If server closed the connection (not a client-initiated disconnect), go to login
       if (reason === "io server disconnect" || reason === "transport close") {
         setTimeout(() => onReset?.(), 2000);
@@ -338,11 +340,18 @@ export default function GameScreen({ session, onReset }) {
     // -- deal ---------------------------------------------------------------
     socket.on("deal", (data) => {
       if (!data?.hand) return;
-      const merged = data.redeal ? data.hand : [...handRef.current, ...data.hand];
+      const shouldReplace = data.redeal || needsFreshHandRef.current;
+      const merged = shouldReplace ? data.hand : [...handRef.current, ...data.hand];
       const sorted = arrangeCards(merged.slice().sort());
       setHand(sorted);
       updateSuitsInHand(sorted);
       setBetBubbles({});
+      if (shouldReplace) {
+        setTableCards({});
+        setSelectedCard(null);
+        setMyTurn(false);
+      }
+      needsFreshHandRef.current = false;
     });
 
     // -- turns & cards ------------------------------------------------------
@@ -496,6 +505,10 @@ export default function GameScreen({ session, onReset }) {
     });
     socket.on("reset", () => {
       showOverlay("Game will reset\u2026");
+      needsFreshHandRef.current = true;
+      setHand([]);
+      setTableCards({});
+      setSelectedCard(null);
       setTimeout(() => onReset?.(), 3000);
     });
     socket.on("disable ui", () => setMyTurn(false));
