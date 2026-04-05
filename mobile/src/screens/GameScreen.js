@@ -189,11 +189,16 @@ export default function GameScreen({ session, onReset }) {
 
   function onCardPress(cardCode) {
     if (choosingTrump) {
-      socket.emit("trump card", cardCode);
-      const next = hand.filter((c) => c !== cardCode);
-      setHand(next);
-      updateSuitsInHand(next);
-      setChoosingTrump(false);
+      if (selectedCard === cardCode) {
+        socket.emit("trump card", cardCode);
+        const next = hand.filter((c) => c !== cardCode);
+        setHand(next);
+        updateSuitsInHand(next);
+        setChoosingTrump(false);
+        setSelectedCard(null);
+        return;
+      }
+      setSelectedCard(cardCode);
       return;
     }
     if (!myTurn) {
@@ -398,6 +403,7 @@ export default function GameScreen({ session, onReset }) {
     // -- trump --------------------------------------------------------------
     socket.on("choose trump", () => {
       setChoosingTrump(true);
+      setSelectedCard(null);
       showOverlay("Tap a card to choose the trump");
     });
 
