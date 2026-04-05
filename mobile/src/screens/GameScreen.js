@@ -126,6 +126,7 @@ export default function GameScreen({ session, onReset }) {
   perspectiveRef.current = playerPerspective;
   const activePlayerRef = useRef(activePlayer);
   activePlayerRef.current = activePlayer;
+  const roomIdRef = useRef(null);
   const sequenceRef = useRef(playerSequence);
   sequenceRef.current = playerSequence;
 
@@ -295,6 +296,7 @@ export default function GameScreen({ session, onReset }) {
       socket.emit("add user", {
         username: session.username,
         playerID: session.playerID,
+        roomID: roomIdRef.current,
       });
     }
     function onDisconnect(reason) {
@@ -313,6 +315,7 @@ export default function GameScreen({ session, onReset }) {
     // -- login / join -------------------------------------------------------
     socket.on("login", (data) => {
       const seq = data.playerSequence || [];
+      roomIdRef.current = data.roomID || roomIdRef.current;
       setPlayerSequence(seq);
       setOnlineFromSequence(seq);
       setPlayerNumber(data.playerNumber);
@@ -515,9 +518,14 @@ export default function GameScreen({ session, onReset }) {
       Alert.alert("Room full", "A game is in progress.");
       setTimeout(() => onReset?.(), 2000);
     });
+    socket.on("room missing", (data) => {
+      showOverlay(data?.message || "Room does not exist anymore", 1800);
+      setTimeout(() => onReset?.(), 1800);
+    });
     socket.on("reset", () => {
       showOverlay("Game will reset\u2026");
       needsFreshHandRef.current = true;
+      roomIdRef.current = null;
       setHand([]);
       setTableCards({});
       setPartnerCards(null);
@@ -546,7 +554,7 @@ export default function GameScreen({ session, onReset }) {
         "trump card","trump setted","request trump","reveal trump",
         "choose bet","bet","mooda","share cards","accepted","rejected",
         "redeal","new sequence","room full","reset","disable ui","enable ui",
-        "message","reconnect","reconnect_error",
+        "message","reconnect","reconnect_error","room missing",
       ].forEach((e) => socket.removeAllListeners(e));
     };
   }, [session.playerID, session.username, socket, showOverlay, showOverlayWithCountdown]);
