@@ -300,6 +300,7 @@ export default function GameScreen({ session, onReset }) {
     function onDisconnect(reason) {
       setSocketStatus("disconnected");
       needsFreshHandRef.current = true;
+      setPartnerCards(null);
       // If server closed the connection (not a client-initiated disconnect), go to login
       if (reason === "io server disconnect" || reason === "transport close") {
         setTimeout(() => onReset?.(), 2000);
@@ -357,6 +358,7 @@ export default function GameScreen({ session, onReset }) {
         setTableCards({});
         setSelectedCard(null);
         setMyTurn(false);
+        setPartnerCards(null);
       }
       needsFreshHandRef.current = false;
     });
@@ -454,6 +456,7 @@ export default function GameScreen({ session, onReset }) {
     });
 
     socket.on("share cards", (data) => {
+      if (needsFreshHandRef.current) return;
       setPartnerCards(arrangeCards(data.partnerCards.slice().sort()));
     });
 
@@ -491,6 +494,7 @@ export default function GameScreen({ session, onReset }) {
       setChoosingTrump(false);
       setMyTurn(false);
       setBetBubbles({});
+      setPartnerCards(null);
       setSelectedCard(null);
       setScores((s) => ({ ...s, teamAHands: 0, teamBHands: 0 }));
     });
@@ -516,7 +520,9 @@ export default function GameScreen({ session, onReset }) {
       needsFreshHandRef.current = true;
       setHand([]);
       setTableCards({});
+      setPartnerCards(null);
       setSelectedCard(null);
+      setMoodaSuit(null);
       setTimeout(() => onReset?.(), 3000);
     });
     socket.on("disable ui", () => setMyTurn(false));
