@@ -73,6 +73,7 @@ export default function GameScreen({ session, onReset }) {
   const [playerPerspective, setPlayerPerspective] = useState([]);
   const [playerNumber, setPlayerNumber] = useState(0);
   const [activePlayer, setActivePlayer] = useState(-1); // perspective index 0-3 with gold border
+  const [playerOnline, setPlayerOnline] = useState({}); // { username: true|false }
 
   // ---- cards --------------------------------------------------------------
   const [hand, setHand] = useState([]);
@@ -151,6 +152,14 @@ export default function GameScreen({ session, onReset }) {
       }
     }, 1000);
   }, []);
+
+  function setOnlineFromSequence(seq) {
+    const next = {};
+    seq.forEach((name) => {
+      if (name) next[name] = true;
+    });
+    setPlayerOnline(next);
+  }
 
   function updateSuitsInHand(cards) {
     const s = [...new Set(cards.map((c) => c[0]))];
@@ -295,6 +304,7 @@ export default function GameScreen({ session, onReset }) {
     socket.on("login", (data) => {
       const seq = data.playerSequence || [];
       setPlayerSequence(seq);
+      setOnlineFromSequence(seq);
       setPlayerNumber(data.playerNumber);
       const persp = getPlayerPerspective(seq, session.username);
       setPlayerPerspective(persp);
@@ -307,6 +317,7 @@ export default function GameScreen({ session, onReset }) {
     socket.on("user joined", (data) => {
       const seq = data.playerSequence || [];
       setPlayerSequence(seq);
+      setOnlineFromSequence(seq);
       const persp = getPlayerPerspective(seq, session.username);
       setPlayerPerspective(persp);
       if (seq.length === 4 && !data.reConnected) {
@@ -317,6 +328,9 @@ export default function GameScreen({ session, onReset }) {
     });
 
     socket.on("user left", (data) => {
+      if (data?.username) {
+        setPlayerOnline((prev) => ({ ...prev, [data.username]: false }));
+      }
       const seconds = Math.ceil((data.timeout || 30000) / 1000);
       showOverlayWithCountdown(data.message, seconds);
     });
@@ -444,6 +458,7 @@ export default function GameScreen({ session, onReset }) {
     socket.on("redeal", (data) => {
       const seq = data.playerSequence || [];
       setPlayerSequence(seq);
+      setOnlineFromSequence(seq);
       const persp = getPlayerPerspective(seq, session.username);
       setPlayerPerspective(persp);
       setPlayerNumber(seq.indexOf(session.username) + 1);
@@ -466,6 +481,7 @@ export default function GameScreen({ session, onReset }) {
     socket.on("new sequence", (data) => {
       const seq = data.playerSequence || [];
       setPlayerSequence(seq);
+      setOnlineFromSequence(seq);
       const persp = getPlayerPerspective(seq, session.username);
       setPlayerPerspective(persp);
       setPlayerNumber(seq.indexOf(session.username) + 1);
@@ -532,6 +548,7 @@ export default function GameScreen({ session, onReset }) {
   // =========================================================================
   function renderAvatar(perspIdx, style) {
     const name = p[perspIdx] || "";
+    const isOnline = name ? !!playerOnline[name] : false;
     const isActive = activePlayer === perspIdx;
     const isTrumpCaller = trumpCaller === perspIdx;
     const isMe = perspIdx === 0;
@@ -557,7 +574,12 @@ export default function GameScreen({ session, onReset }) {
         ) : (
           circle
         )}
-        <Text style={styles.avatarName} numberOfLines={1}>{name}</Text>
+        <View style={styles.avatarNameRow}>
+          {name ? (
+            <View style={[styles.playerDot, isOnline ? styles.playerDotGreen : styles.playerDotRed]} />
+          ) : null}
+          <Text style={styles.avatarName} numberOfLines={1}>{name}</Text>
+        </View>
         {betBubbles[perspIdx] != null && (
           <View style={styles.betBubble}>
             <Text style={styles.betBubbleText}>{String(betBubbles[perspIdx])}</Text>
@@ -890,7 +912,11 @@ const styles = StyleSheet.create({
   avatarActive: { borderColor: "gold", borderWidth: 3 },
   avatarTrumpCaller: { backgroundColor: "#8b2020" },
   avatarInitial: { color: "#f8efcf", fontSize: 18, fontWeight: "700" },
-  avatarName: { color: "#f8efcf", fontSize: 10, marginTop: 2, textAlign: "center" },
+  avatarNameRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  avatarName: { color: "#f8efcf", fontSize: 10, textAlign: "center" },
+  playerDot: { width: 6, height: 6, borderRadius: 3 },
+  playerDotGreen: { backgroundColor: "#4caf50" },
+  playerDotRed: { backgroundColor: "#f44336" },
 
   // -- bet bubbles --
   betBubble: {
