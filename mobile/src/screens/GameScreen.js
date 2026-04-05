@@ -248,22 +248,9 @@ export default function GameScreen({ session, onReset }) {
 
   // ---- request / reveal trump ---------------------------------------------
   function onTrumpPress() {
-    // Trump caller can reveal trump by tapping it
+    // Trump is opened automatically when p2/p4 requests it.
     if (playerNumber === 1 && trumpCard && !trumpRevealed) {
-      if (!trumpAsked) {
-        showOverlay("You can open trump only after player 2 or 4 requests it");
-        return;
-      }
-
-      socket.emit("reveal trump");
-      // Add trump card back to hand
-      const cardCode = trumpCard;
-      const next = [...hand, cardCode];
-      setHand(arrangeCards(next.slice().sort()));
-      updateSuitsInHand(next);
-      setTrumpRevealed(true);
-      setTrumpCard(null);
-      setTrumpAsked(false);
+      showOverlay("Wait for player 2 or 4 to request trump");
       return;
     }
     // Opponents (p2/p4) request trump when they don't have the round suit
@@ -441,6 +428,16 @@ export default function GameScreen({ session, onReset }) {
       setTrumpRevealed(true);
       setTrumpCard(data.trumpCard);
       setTrumpAsked(false);
+
+      // Player 1 gets the trump card back when trump is opened.
+      if (playerNumber === 1 && data?.trumpCard) {
+        setHand((prev) => {
+          if (prev.includes(data.trumpCard)) return prev;
+          const next = arrangeCards([...prev, data.trumpCard].slice().sort());
+          updateSuitsInHand(next);
+          return next;
+        });
+      }
     });
 
     // -- bets ---------------------------------------------------------------

@@ -116,6 +116,35 @@ io.on('connection', function(socket) {
         const hasCurrentRoundSuit = cards.some((card) => card && card.charAt(0) === thisCache.currentRoundSuit);
         return !hasCurrentRoundSuit;
     };
+
+    const revealTrumpForAll = (openedByUsername) => {
+        if (!thisCache || !thisCache.players || thisCache.numUsers < 4) return false;
+        if (thisCache.trumpRevealed || !thisCache.trumpCard || !thisCache.trumpRequested) {
+            log(LOCAL, 'server', 'blocked reveal trump', {
+                username: openedByUsername,
+                trumpRevealed: thisCache ? thisCache.trumpRevealed : null,
+                hasTrumpCard: thisCache ? !!thisCache.trumpCard : null,
+                trumpRequested: thisCache ? !!thisCache.trumpRequested : null
+            });
+            return false;
+        }
+
+        thisCache.revealedInThis = thisCache.turn;
+        thisCache.trumpRevealed = 1;
+        thisCache.trumpRequested = false;
+        thisCache.usersCards[thisCache.playerSequence[0]].push(thisCache.trumpCard);
+
+        io.to(roomID).emit('reveal trump', {
+            username: openedByUsername,
+            trumpCard: thisCache.trumpCard
+        });
+        log(UP, 'broadcast', 'reveal trump', {
+            username: openedByUsername,
+            trumpCard: thisCache.trumpCard
+        });
+
+        return true;
+    };
     
     // when the client emits 'add user', this listens and executes
     socket.on('add user', function(data) {
@@ -803,6 +832,8 @@ io.on('connection', function(socket) {
         log(UP, 'broadcast', 'request trump', {
             username: socket.username,
         });
+
+        revealTrumpForAll(socket.username);
     });
 
     socket.on('reveal trump', function() {
@@ -814,34 +845,8 @@ io.on('connection', function(socket) {
             });
             return;
         }
-        if (thisCache.trumpRevealed || !thisCache.trumpCard || !thisCache.trumpRequested) {
-            log(LOCAL, 'server', 'blocked reveal trump', {
-                username: socket.username,
-                trumpRevealed: thisCache.trumpRevealed,
-                hasTrumpCard: !!thisCache.trumpCard,
-                trumpRequested: !!thisCache.trumpRequested
-            });
-            return;
-        }
-
         log(DOWN, socket.username, 'reveal trump', {})
-        //xconsole.log('revealed trump');
-        thisCache.revealedInThis = thisCache.turn;
-        thisCache.trumpRevealed = 1;
-        thisCache.trumpRequested = false;
-        thisCache.usersCards[thisCache.playerSequence[0]].push(thisCache.trumpCard)
-        var arr = thisCache.trumpCard.split(/(\d+)/);
-        if (arr[1] > 10) {
-            arr[1] = deckJargons[arr[1]];
-        }
-        io.to(roomID).emit('reveal trump', {
-            username: socket.username,
-            trumpCard: thisCache.trumpCard
-        });
-        log(UP, 'broadcast', 'reveal trump', {
-            username: socket.username,
-            trumpCard: thisCache.trumpCard
-        });
+        revealTrumpForAll(socket.username);
     });
 
     socket.on('mooda', function(data) {
