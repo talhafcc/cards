@@ -76,6 +76,46 @@ io.on('connection', function(socket) {
     let roomID;
     let thisCache;
     let reConnected = false;
+
+    const getExpectedTurnUsername = () => {
+        if (!thisCache || !thisCache.players || thisCache.numUsers < 4) return null;
+
+        if (thisCache.nextTurnUsername) {
+            return thisCache.nextTurnUsername;
+        }
+
+        const openingLead = thisCache.totalRounds === 0 && thisCache.turn === 0;
+        if (!openingLead) return null;
+
+        // No one can throw before trump is decided (or mooda accepted).
+        if (!thisCache.trumpCard) return null;
+        if (thisCache.moodaCalled && !thisCache.moodaAccepted) return null;
+
+        return thisCache.players.p1 && thisCache.players.p1.username;
+    };
+
+    const getPlayerNumber = (username) => {
+        if (!thisCache || !thisCache.playerSequence) return 0;
+        return thisCache.playerSequence.indexOf(username) + 1;
+    };
+
+    const canRequestTrump = (username) => {
+        if (!thisCache || !thisCache.players || thisCache.numUsers < 4) return false;
+        if (thisCache.trumpRevealed || !thisCache.trumpCard) return false;
+        if (thisCache.moodaCalled) return false;
+
+        const playerNumber = getPlayerNumber(username);
+        if (playerNumber !== 2 && playerNumber !== 4) return false;
+
+        const expectedTurnUsername = getExpectedTurnUsername();
+        if (!expectedTurnUsername || expectedTurnUsername !== username) return false;
+
+        if (!thisCache.currentRoundSuit) return false;
+
+        const cards = thisCache.usersCards[username] || [];
+        const hasCurrentRoundSuit = cards.some((card) => card && card.charAt(0) === thisCache.currentRoundSuit);
+        return !hasCurrentRoundSuit;
+    };
     
     // when the client emits 'add user', this listens and executes
     socket.on('add user', function(data) {
@@ -472,10 +512,16 @@ io.on('connection', function(socket) {
             log(UP, thisCache.players.p4.socket.username, 'deal',{
                 hand: thisCache.usersCards[thisCache.players.p4.username].slice(5, 13)
             });
+
+            thisCache.trumpRequested = false;
         }
     });
 
     socket.on('trump card', function(data) {
+        if (!thisCache || !thisCache.players || socket.username !== thisCache.players.p1.username) {
+            return;
+        }
+
         log(DOWN, socket.username, 'trump card', data);
         socket.broadcast.to(roomID).emit('trump setted', {
             data: 'budRangi'
@@ -508,9 +554,21 @@ io.on('connection', function(socket) {
         })
         thisCache.trumpCard = data;
         thisCache.usersCards[socket.username].splice(thisCache.usersCards[socket.username].indexOf(data), 1)
+        thisCache.nextTurnUsername = socket.username;
     });
 
     socket.on('card thrown', function(data) {
+        const expectedTurnUsername = getExpectedTurnUsername();
+        if (!expectedTurnUsername || socket.username !== expectedTurnUsername) {
+            log(LOCAL, 'server', 'invalid turn throw', {
+                username: socket.username,
+                expectedTurnUsername: expectedTurnUsername,
+                turn: thisCache ? thisCache.turn : null,
+                totalRounds: thisCache ? thisCache.totalRounds : null
+            });
+            return;
+        }
+
         // we tell the client to execute 'card thrown'
         log(DOWN, socket.username, 'card thrown', data);
 
@@ -728,7 +786,17 @@ io.on('connection', function(socket) {
     });
 
     socket.on('request trump', function() {
-        //xconsole.log(socket.username + ' asked for trump');
+        if (!canRequestTrump(socket.username)) {
+            log(LOCAL, 'server', 'invalid request trump', {
+                username: socket.username,
+                playerNumber: getPlayerNumber(socket.username),
+                currentRoundSuit: thisCache ? thisCache.currentRoundSuit : null,
+                trumpRevealed: thisCache ? thisCache.trumpRevealed : null
+            });
+            return;
+        }
+
+        thisCache.trumpRequested = true;
         io.sockets.to(roomID).emit('request trump', {
             username: socket.username,
         });
@@ -738,10 +806,29 @@ io.on('connection', function(socket) {
     });
 
     socket.on('reveal trump', function() {
+        if (!thisCache || !thisCache.players || thisCache.numUsers < 4) return;
+        if (socket.username !== thisCache.players.p1.username) {
+            log(LOCAL, 'server', 'invalid reveal trump', {
+                username: socket.username,
+                expected: thisCache.players.p1.username
+            });
+            return;
+        }
+        if (thisCache.trumpRevealed || !thisCache.trumpCard || !thisCache.trumpRequested) {
+            log(LOCAL, 'server', 'blocked reveal trump', {
+                username: socket.username,
+                trumpRevealed: thisCache.trumpRevealed,
+                hasTrumpCard: !!thisCache.trumpCard,
+                trumpRequested: !!thisCache.trumpRequested
+            });
+            return;
+        }
+
         log(DOWN, socket.username, 'reveal trump', {})
         //xconsole.log('revealed trump');
         thisCache.revealedInThis = thisCache.turn;
         thisCache.trumpRevealed = 1;
+        thisCache.trumpRequested = false;
         thisCache.usersCards[thisCache.playerSequence[0]].push(thisCache.trumpCard)
         var arr = thisCache.trumpCard.split(/(\d+)/);
         if (arr[1] > 10) {
@@ -822,6 +909,7 @@ io.on('connection', function(socket) {
         
         thisCache.trumpRevealed = 1;
         thisCache.moodaCalled = true;
+        thisCache.trumpRequested = false;
         thisCache.highestBet = 13;
         thisCache.highestBettor = socket.username;
         thisCache.moodaSuit = data.moodaSuit; //data.moodaSuit.charAt(0).toUpperCase();
@@ -911,6 +999,7 @@ io.on('connection', function(socket) {
 
 		if(thisCache.moodaStatus.length == 2) {
             thisCache.moodaAccepted = true;
+            thisCache.nextTurnUsername = thisCache.players.p1.username;
 			thisCache.players.p1.socket.emit('your turn', {
 				currentRoundSuit: thisCache.currentRoundSuit,
 				totalRounds: thisCache.totalRounds,
@@ -1106,6 +1195,7 @@ io.on('connection', function(socket) {
         thisCache.highestBet = 7;
         thisCache.highestBettor = '';
 		thisCache.moodaCalled = false;
+        thisCache.trumpRequested = false;
         thisCache.moodaStatus = [];
         thisCache.moodaAccepted = false;
         thisCache.moodaSuit = '';
@@ -1153,6 +1243,7 @@ io.on('connection', function(socket) {
         thisCache.highestBet = 7;
         thisCache.highestBettor = '';
 		thisCache.moodaCalled = false;
+        thisCache.trumpRequested = false;
         thisCache.moodaStatus = [];
         thisCache.moodaAccepted = false;
         thisCache.moodaSuit = ''
