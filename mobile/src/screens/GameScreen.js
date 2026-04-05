@@ -124,6 +124,8 @@ export default function GameScreen({ session, onReset }) {
   handRef.current = hand;
   const perspectiveRef = useRef(playerPerspective);
   perspectiveRef.current = playerPerspective;
+  const activePlayerRef = useRef(activePlayer);
+  activePlayerRef.current = activePlayer;
   const sequenceRef = useRef(playerSequence);
   sequenceRef.current = playerSequence;
 
@@ -518,7 +520,11 @@ export default function GameScreen({ session, onReset }) {
       setTimeout(() => onReset?.(), 3000);
     });
     socket.on("disable ui", () => setMyTurn(false));
-    socket.on("enable ui", () => {});
+    socket.on("enable ui", () => {
+      if (activePlayerRef.current === 0) {
+        setMyTurn(true);
+      }
+    });
     socket.on("message", (data) => {
       showOverlay(`${data.username}: ${data.message}`, 4000);
     });
