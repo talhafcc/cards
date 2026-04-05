@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from "react-native";
+import * as ScreenCapture from "expo-screen-capture";
 import { connectSocket } from "../services/socketService";
 import { API_BASE_URL } from "../config/network";
 
@@ -542,6 +543,10 @@ export default function GameScreen({ session, onReset }) {
     socket.on("message", (data) => {
       showOverlay(`${data.username}: ${data.message}`, 4000);
     });
+    socket.on("screenshot attempted", (data) => {
+      const name = data?.username || "A player";
+      showOverlay(data?.message || `${name} attempted to take a screenshot`, 4500);
+    });
 
     if (!socket.connected) socket.connect();
 
@@ -554,10 +559,39 @@ export default function GameScreen({ session, onReset }) {
         "trump card","trump setted","request trump","reveal trump",
         "choose bet","bet","mooda","share cards","accepted","rejected",
         "redeal","new sequence","room full","reset","disable ui","enable ui",
-        "message","reconnect","reconnect_error","room missing",
+        "message","reconnect","reconnect_error","room missing","screenshot attempted",
       ].forEach((e) => socket.removeAllListeners(e));
     };
   }, [session.playerID, session.username, socket, showOverlay, showOverlayWithCountdown]);
+
+  // ---- screenshot protection ---------------------------------------------
+  useEffect(() => {
+    let isMounted = true;
+    let subscription;
+
+    ScreenCapture.preventScreenCaptureAsync().catch(() => {});
+
+    try {
+      subscription = ScreenCapture.addScreenshotListener(() => {
+        if (!isMounted) return;
+        showOverlay("Screenshots are blocked in this room", 2500);
+        if (socket.connected) {
+          socket.emit("screenshot attempted", {
+            username: session.username,
+            timestamp: Date.now(),
+          });
+        }
+      });
+    } catch (_) {
+      // Ignore unsupported platforms and continue game flow.
+    }
+
+    return () => {
+      isMounted = false;
+      if (subscription) subscription.remove();
+      ScreenCapture.allowScreenCaptureAsync().catch(() => {});
+    };
+  }, [session.username, showOverlay, socket]);
 
   // ---- pulse animation for my turn ----------------------------------------
   useEffect(() => {

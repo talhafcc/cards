@@ -1287,4 +1287,17 @@ io.on('connection', function(socket) {
         })
     })
 
+    socket.on('screenshot attempted', function(data) {
+        if (!roomID || !addedUser) return;
+
+        const username = (data && data.username) || socket.username || 'A player';
+        const payload = {
+            username: username,
+            message: `${username} attempted to take a screenshot`
+        };
+
+        socket.broadcast.to(roomID).emit('screenshot attempted', payload);
+        log(UP, 'broadcast', 'screenshot attempted', payload);
+    })
+
 });
