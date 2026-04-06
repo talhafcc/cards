@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Dimensions, ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+
+const HOME_BG = require("../../assets/img_7680.jpg");
+const BG_SHIFT = Dimensions.get("window").height * 0.1;
 
 export default function HomeScreen({ session, onQuickPlay, onCreateRoom, onJoinRoom, onLogout }) {
   const [joinRoomID, setJoinRoomID] = useState("");
@@ -20,51 +23,64 @@ export default function HomeScreen({ session, onQuickPlay, onCreateRoom, onJoinR
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome, {session.username}</Text>
-      <Text style={styles.subtitle}>Choose how you want to play</Text>
+    <ImageBackground source={HOME_BG} style={styles.container} imageStyle={styles.bgImage} resizeMode="cover">
+      <View style={styles.overlay} />
+      <View style={styles.content}>
+        <View style={styles.mainActions}>
+          <Text style={styles.title}>Welcome, {session.username}</Text>
+          <Text style={styles.subtitle}>Choose how you want to play</Text>
 
-      <Pressable style={[styles.button, styles.primary]} onPress={onCreateRoom}>
-        <Text style={styles.buttonText}>Create Room</Text>
-      </Pressable>
+          <Pressable style={[styles.button, styles.primary]} onPress={onCreateRoom}>
+            <Text style={styles.buttonText}>Create Room</Text>
+          </Pressable>
 
-      <View style={styles.joinBlock}>
-        <TextInput
-          style={styles.input}
-          placeholder="6-digit room code"
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="number-pad"
-          maxLength={6}
-          value={joinRoomID}
-          onChangeText={onRoomCodeChange}
-        />
-        <Pressable style={[styles.button, styles.secondary]} onPress={handleJoinRoom}>
-          <Text style={styles.buttonText}>Join Room</Text>
+          <View style={styles.joinBlock}>
+            <TextInput
+              style={styles.input}
+              placeholder="6-digit room code"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="number-pad"
+              maxLength={6}
+              value={joinRoomID}
+              onChangeText={onRoomCodeChange}
+            />
+            <Pressable style={[styles.button, styles.secondary]} onPress={handleJoinRoom}>
+              <Text style={styles.buttonText}>Join Room</Text>
+            </Pressable>
+          </View>
+
+          <Pressable style={[styles.button, styles.tertiary]} onPress={onQuickPlay}>
+            <Text style={styles.buttonText}>Quick Play</Text>
+          </Pressable>
+        </View>
+
+        <Pressable style={[styles.button, styles.secondary, styles.logoutButton]} onPress={onLogout}>
+          <Text style={styles.buttonText}>Log Out</Text>
         </Pressable>
       </View>
-
-      <Pressable style={[styles.button, styles.tertiary]} onPress={onQuickPlay}>
-        <Text style={styles.buttonText}>Quick Play</Text>
-      </Pressable>
-
-      <Pressable style={[styles.button, styles.disabled]}>
-        <Text style={styles.buttonText}>Single Player (Coming Soon)</Text>
-      </Pressable>
-
-      <Pressable style={[styles.button, styles.secondary]} onPress={onLogout}>
-        <Text style={styles.buttonText}>Log Out</Text>
-      </Pressable>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#102622",
-    justifyContent: "center",
+  },
+  bgImage: {
+    top: -BG_SHIFT,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(7, 16, 13, 0.34)",
+  },
+  content: {
+    flex: 1,
     padding: 24,
+  },
+  mainActions: {
+    flex: 1,
+    justifyContent: "center",
     gap: 14,
   },
   title: {
@@ -93,9 +109,8 @@ const styles = StyleSheet.create({
   tertiary: {
     backgroundColor: "#2f7d67",
   },
-  disabled: {
-    backgroundColor: "#3f4e47",
-    opacity: 0.7,
+  logoutButton: {
+    marginBottom: 8,
   },
   joinBlock: {
     gap: 8,

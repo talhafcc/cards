@@ -157,6 +157,29 @@ io.on('connection', function(socket) {
         if (createRoom && !requestedRoomID) {
             requestedRoomID = cache.createRoom();
         }
+
+        if (requestedRoomID) {
+            if (!cache.roomExists(requestedRoomID)) {
+                socket.emit('room missing', {
+                    roomID: requestedRoomID,
+                    message: 'Room does not exist anymore'
+                });
+                return;
+            }
+
+            const requestedRoomCache = cache.getGameCache(requestedRoomID);
+            const isExistingPlayer = !!requestedRoomCache && !!requestedRoomCache.usersCards && username in requestedRoomCache.usersCards;
+            const roomIsFull = !!requestedRoomCache && requestedRoomCache.totalUsers >= 4;
+
+            if (!isExistingPlayer && roomIsFull) {
+                socket.emit('room full', {
+                    roomID: requestedRoomID,
+                    message: 'Room full. A game is in progress.'
+                });
+                return;
+            }
+        }
+
         roomID = cache.addUser(socket, username, requestedRoomID);
         if (!roomID) {
             socket.emit('room missing', {
