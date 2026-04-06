@@ -49,6 +49,7 @@ const deckJargons = {
 const UP = 'upstream'
 const DOWN = 'downstream'
 const LOCAL = 'local'
+const ROOM_TYPE_QUICK_PLAY = 'quick_play'
 
 const deal = (deck) => {
     var this_hand = [];
@@ -169,7 +170,17 @@ io.on('connection', function(socket) {
 
             const requestedRoomCache = cache.getGameCache(requestedRoomID);
             const isExistingPlayer = !!requestedRoomCache && !!requestedRoomCache.usersCards && username in requestedRoomCache.usersCards;
+            const roomType = requestedRoomCache && requestedRoomCache.roomType;
             const roomIsFull = !!requestedRoomCache && requestedRoomCache.totalUsers >= 4;
+
+            // Quick-play rooms must be joined via quick-play matchmaking only.
+            if (!isExistingPlayer && roomType === ROOM_TYPE_QUICK_PLAY) {
+                socket.emit('room missing', {
+                    roomID: requestedRoomID,
+                    message: 'Room does not exist anymore'
+                });
+                return;
+            }
 
             if (!isExistingPlayer && roomIsFull) {
                 socket.emit('room full', {
