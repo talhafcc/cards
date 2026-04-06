@@ -1,5 +1,16 @@
 import { useState } from "react";
-import { Alert, Dimensions, ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Dimensions,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { authenticate } from "../services/authService";
 import { saveSession } from "../state/sessionStorage";
 
@@ -44,25 +55,31 @@ export default function LoginScreen({ onLoggedIn }) {
   return (
     <ImageBackground source={LOGIN_BG} style={styles.container} imageStyle={styles.bgImage} resizeMode="cover">
       <View style={styles.overlay} />
-      <View style={styles.content}>
-        <Text style={styles.subtitle}>Tap Play to join</Text>
+      <KeyboardAvoidingView
+        style={styles.keyboardWrap}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 24 : 0}
+      >
+        <View style={styles.content}>
+          <Text style={styles.subtitle}>Tap Play to join</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="nickname"
-          autoCapitalize="none"
-          value={username}
-          onChangeText={setUsername}
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="nickname"
+            autoCapitalize="none"
+            value={username}
+            onChangeText={setUsername}
+          />
 
-        <Pressable
-          style={[styles.button, loading && styles.buttonDisabled]}
-          disabled={loading}
-          onPress={handleLogin}
-        >
-          <Text style={styles.buttonText}>{loading ? "Joining..." : "Play"}</Text>
-        </Pressable>
-      </View>
+          <Pressable
+            style={[styles.button, loading && styles.buttonDisabled]}
+            disabled={loading}
+            onPress={handleLogin}
+          >
+            <Text style={styles.buttonText}>{loading ? "Joining..." : "Play"}</Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </ImageBackground>
   );
 }
@@ -77,6 +94,9 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(7, 16, 13, 0.34)",
+  },
+  keyboardWrap: {
+    flex: 1,
   },
   content: {
     flex: 1,
