@@ -549,14 +549,12 @@ export default function GameScreen({ session, onReset }) {
       const persp = perspectiveRef.current;
       const pos = persp.indexOf(data.username);
       setBetBubbles((prev) => ({ ...prev, [pos]: "Accepted" }));
-      setPartnerCards(null);
     });
 
     socket.on("rejected", (data) => {
       const persp = perspectiveRef.current;
       const pos = persp.indexOf(data.username);
       setBetBubbles((prev) => ({ ...prev, [pos]: "Rejected" }));
-      setPartnerCards(null);
     });
 
     // -- redeal / new sequence ----------------------------------------------
