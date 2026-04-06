@@ -71,11 +71,20 @@ export default function LoginScreen({ onLoggedIn }) {
           />
 
           <Pressable
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={({ pressed }) => [
+              styles.buttonShell,
+              styles.primaryShell,
+              loading && styles.buttonDisabled,
+              pressed && !loading && styles.buttonShellPressed,
+            ]}
             disabled={loading}
             onPress={handleLogin}
           >
-            <Text style={styles.buttonText}>{loading ? "Joining..." : "Play"}</Text>
+            {({ pressed }) => (
+              <View style={[styles.buttonFace, styles.primaryFace, pressed && !loading && styles.buttonFacePressed]}>
+                <Text style={styles.buttonText}>{loading ? "Joining..." : "Play"}</Text>
+              </View>
+            )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -117,19 +126,52 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
   },
-  button: {
+  buttonShell: {
     marginTop: 4,
-    backgroundColor: "#c84f2f",
-    borderRadius: 10,
+    borderRadius: 14,
+    paddingBottom: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  buttonShellPressed: {
+    paddingBottom: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  buttonFace: {
+    borderRadius: 13,
     paddingVertical: 13,
     alignItems: "center",
+    borderWidth: 2,
+    borderTopColor: "rgba(255, 248, 228, 0.9)",
+    borderLeftColor: "rgba(255, 238, 200, 0.85)",
+    borderRightColor: "rgba(38, 24, 18, 0.5)",
+    borderBottomColor: "rgba(38, 24, 18, 0.62)",
+  },
+  buttonFacePressed: {
+    transform: [{ translateY: 2 }],
+  },
+  primaryShell: {
+    backgroundColor: "#6b2518",
+  },
+  primaryFace: {
+    backgroundColor: "#bb4a2b",
   },
   buttonDisabled: {
     opacity: 0.5,
   },
   buttonText: {
-    color: "white",
-    fontWeight: "700",
+    color: "#fff9ec",
+    fontWeight: "800",
     fontSize: 16,
+    letterSpacing: 0.45,
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
 });
