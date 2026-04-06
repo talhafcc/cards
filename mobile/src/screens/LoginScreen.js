@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Dimensions, ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { authenticate } from "../services/authService";
 import { saveSession } from "../state/sessionStorage";
+
+const LOGIN_BG = require("../../assets/img_7680.jpg");
+const BG_SHIFT = Dimensions.get("window").height * 0.1;
 
 function randomName() {
   const adj = ["Swift", "Bold", "Sly", "Lucky", "Keen", "Brave", "Cool", "Sharp"];
@@ -39,42 +42,48 @@ export default function LoginScreen({ onLoggedIn }) {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>DubRung</Text>
-      <Text style={styles.subtitle}>Tap Play to join</Text>
+    <ImageBackground source={LOGIN_BG} style={styles.container} imageStyle={styles.bgImage} resizeMode="cover">
+      <View style={styles.overlay} />
+      <View style={styles.content}>
+        <Text style={styles.subtitle}>Tap Play to join</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="nickname"
-        autoCapitalize="none"
-        value={username}
-        onChangeText={setUsername}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="nickname"
+          autoCapitalize="none"
+          value={username}
+          onChangeText={setUsername}
+        />
 
-      <Pressable
-        style={[styles.button, loading && styles.buttonDisabled]}
-        disabled={loading}
-        onPress={handleLogin}
-      >
-        <Text style={styles.buttonText}>{loading ? "Joining..." : "Play"}</Text>
-      </Pressable>
-    </View>
+        <Pressable
+          style={[styles.button, loading && styles.buttonDisabled]}
+          disabled={loading}
+          onPress={handleLogin}
+        >
+          <Text style={styles.buttonText}>{loading ? "Joining..." : "Play"}</Text>
+        </Pressable>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0d1f16",
-    paddingHorizontal: 24,
-    justifyContent: "center",
-    gap: 12,
   },
-  title: {
-    fontSize: 40,
-    fontWeight: "700",
-    color: "#f8efcf",
-    textAlign: "center",
+  bgImage: {
+    top: -BG_SHIFT,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(7, 16, 13, 0.34)",
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 150,
+    justifyContent: "flex-end",
+    gap: 12,
   },
   subtitle: {
     fontSize: 16,
