@@ -12,7 +12,6 @@ import {
   View,
 } from "react-native";
 import { authenticate } from "../services/authService";
-import { saveSession } from "../state/sessionStorage";
 
 const LOGIN_BG = require("../../assets/img_7680.jpg");
 const BG_SHIFT = Dimensions.get("window").height * 0.1;

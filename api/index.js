@@ -151,7 +151,12 @@ io.on('connection', function(socket) {
         if (addedUser) return;
         const username = data.username
         const playerID = data.playerID
-        const requestedRoomID = data.roomID || null;
+        let requestedRoomID = data.roomID != null ? String(data.roomID).trim() : null;
+        if (!requestedRoomID) requestedRoomID = null;
+        const createRoom = !!data.createRoom;
+        if (createRoom && !requestedRoomID) {
+            requestedRoomID = cache.createRoom();
+        }
         roomID = cache.addUser(socket, username, requestedRoomID);
         if (!roomID) {
             socket.emit('room missing', {
